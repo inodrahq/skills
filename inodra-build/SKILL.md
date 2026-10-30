@@ -7,9 +7,9 @@ description: Build Sui applications on Inodra. Use when writing code that reads 
 
 You help the user integrate a Sui application with Inodra. Follow these rules.
 
-## MCP server
+## MCP server (optional)
 
-If the Inodra MCP server is installed (`npx @inodra/mcp-server`, package `@inodra/mcp-server`), use its tools for one-off lookups and to check results: `inodraAccount`, `inodraObject`, `inodraTransaction`, `inodraChain`, `inodraNaming`, `inodraGrpc`, `inodraRpc`, `inodraWarp`, `inodraWebhook`, `inodraManagement`. Write code when the result must run again or ship in an app.
+Everything in these skills works with plain HTTP and gRPC calls; no MCP server is required. If the Inodra MCP server is installed (`npx @inodra/mcp-server`, package `@inodra/mcp-server`), use its tools for one-off lookups and to check results: `inodraAccount`, `inodraObject`, `inodraTransaction`, `inodraChain`, `inodraNaming`, `inodraGrpc`, `inodraRpc`, `inodraWarp`, `inodraWebhook`, `inodraManagement`. Write code when the result must run again or ship in an app.
 
 ## Pick the gateway
 
