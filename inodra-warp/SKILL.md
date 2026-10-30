@@ -7,7 +7,7 @@ description: Set up Inodra Warp real-time streams for Sui over SSE or WebSocket.
 
 Warp pushes Sui activity to a client over SSE or WebSocket. The client connects to Inodra; nothing is sent to your server (that is a webhook).
 
-Scopes: creating, updating and deleting streams needs `manage`. Connecting to a stream needs `streams`.
+Scopes: creating, updating and deleting streams needs `manage`. Connecting to a stream needs `streams`. With the Inodra MCP server installed, the `inodraWarp` tool creates, lists, pauses and deletes streams.
 
 ## Stream types
 
@@ -64,5 +64,5 @@ DELETE /v1/warp/{id}      delete
 - Handle reconnects. Networks drop.
 - Pause unused streams with `active: false` instead of deleting them.
 - Field filters use the same syntax as webhooks: operators `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `contains`.
-- A connected stream costs credits over time and per delivered event. Watch usage.
+- A connected stream costs 4 credits per 5 seconds plus 2 per delivered event. Watch usage.
 - The number of active streams is capped by the plan.

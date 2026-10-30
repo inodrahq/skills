@@ -7,9 +7,13 @@ description: Use the Inodra gRPC gateway for Sui. Use when calling sui.rpc.v2 se
 
 Inodra serves the Sui `sui.rpc.v2` services over real gRPC (HTTP/2, protobuf, TLS). Plain JSON over HTTP does not work on the gRPC hosts; use a generated client.
 
-Hosts: `mainnet-grpc.inodra.com:443`, `testnet-grpc.inodra.com:443`. Send the key as `x-api-key` metadata. The key needs the `data` scope.
+Hosts: `mainnet-grpc.inodra.com:443`, `testnet-grpc.inodra.com:443`. Send the key as `x-api-key` metadata. The key needs the `data` scope. The gateway serves the key's network on either host and never answers `NETWORK_MISMATCH`; confirm the network with `GET https://mainnet-api.inodra.com/v1/auth/me` if in doubt.
+
+With the Inodra MCP server installed, `inodraGrpc` makes any of these calls as a tool; use it to check what a call returns before writing code.
 
 ## Client
+
+Install `@mysten/sui`, `@grpc/grpc-js` and `@protobuf-ts/grpc-transport`.
 
 ```typescript
 import { credentials } from "@grpc/grpc-js";
@@ -26,7 +30,7 @@ const client = new SuiGrpcClient({
 });
 ```
 
-`client.core.*` gives typed helpers. Raw service calls return a call object; await `.response`. Streaming calls expose `.responses` as an async iterable.
+`client.core.*` gives typed helpers with plain JS types, for example `client.core.listBalances({ owner, limit, cursor })` returns `{ balances, hasNextPage, cursor }`. Raw service calls return a call object; await `.response`. Streaming calls expose `.responses` as an async iterable. Raw responses carry `bigint` for numbers and `Uint8Array` for bytes and cursors.
 
 ## Services
 
@@ -55,15 +59,34 @@ Always set `readMask`. It cuts bytes and credits.
 
 ## List* paging
 
-Filters are in disjunctive normal form: `terms` are ORed, `literals` in a term are ANDed, at most 10 literals. Transaction literals: `sender`, `affected_address`, `affected_object`, `move_call`, `emit_module`, `event_type`, `package_write`. Event literals: `sender`, `emit_module`, `event_type`.
+Filters are in disjunctive normal form: `terms` are ORed, `literals` in a term are ANDed, at most 10 literals. Transaction literals: `sender`, `affected_address`, `affected_object`, `move_call`, `emit_module`, `event_type`, `package_write`. Event literals: `sender`, `emit_module`, `event_type`, `event_stream_head`.
 
-Each frame carries `watermark { cursor, checkpoint }`. The last frame carries `end { reason }`:
+`options.ordering`: `0` = ASCENDING, `1` = DESCENDING. Each frame carries `watermark { cursor, checkpoint }`. The last frame carries `end { reason }`:
 
-- `ITEM_LIMIT`: the page is full, continue from the cursor
-- `SCAN_LIMIT`: the server stopped early, maybe with zero items, continue from the cursor
-- `CHECKPOINT_BOUND`: the range is done
+| `end.reason`           | Meaning                                                   | Next step                     |
+| ---------------------- | --------------------------------------------------------- | ----------------------------- |
+| `1` `ITEM_LIMIT`       | The page is full                                          | Continue from the cursor      |
+| `2` `SCAN_LIMIT`       | The server stopped early, maybe with zero items           | Continue from the cursor      |
+| `3` `CHECKPOINT_BOUND` | The requested checkpoint range is done                    | Stop                          |
+| `4` `CURSOR_BOUND`     | The scan reached the cursor bound, nothing more that way  | Stop                          |
+| `5` `LEDGER_TIP`       | The scan reached the newest checkpoint                    | Stop, or poll later           |
 
-Descending scans continue with `options.before`, ascending with `options.after`. Inodra serves the full chain history for these calls.
+A page can end with fewer items than `limit`. Descending scans continue with `options.before`, ascending with `options.after`; pass the `Uint8Array` cursor back as-is. Inodra serves the full chain history for these calls.
+
+Transaction status lives at `effects.status`: `{ success: boolean, error?: { description } }`.
+
+Events by type, newest first:
+
+```typescript
+const call = client.ledgerService.listEvents({
+  readMask: { paths: ["event_type", "json", "checkpoint", "transaction_digest"] },
+  filter: { terms: [{ literals: [{ negated: false, predicate: {
+    oneofKind: "eventType", eventType: { eventType: normalizeStructTag("0x2::display::DisplayCreated") },
+  } }] }] },
+  options: { limit: 3, ordering: 1 },
+});
+for await (const frame of call.responses) if (frame.event) console.log(frame.event);
+```
 
 ```typescript
 const call = client.ledgerService.listTransactions({
@@ -95,5 +118,5 @@ for await (const frame of call.responses) {
 ## Rules
 
 - Responses contain `bigint` and `Uint8Array`. Convert before `JSON.stringify`.
+- Addresses and types in filters must be full length (`0x000...002::coin::Coin`, 64 hex digits). The SDK helpers normalize them; raw calls with `0x2` get `INVALID_ARGUMENT`. Omit `filter` entirely instead of sending empty `terms`.
 - Unary paging (`ListOwnedObjects`, `ListBalances`, `ListDynamicFields`) uses `pageToken` bytes and `pageSize`.
-- Gas from the address balance needs `SimulateTransaction` with `doGasSelection`; the SDK handles it.
