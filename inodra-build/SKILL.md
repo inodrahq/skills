@@ -9,7 +9,7 @@ You help the user integrate a Sui application with Inodra. Follow these rules.
 
 ## MCP server (optional)
 
-Everything in these skills works with plain HTTP and gRPC calls; no MCP server is required. If the Inodra MCP server is installed (`npx @inodra/mcp-server`, package `@inodra/mcp-server`), use its tools for one-off lookups and to check results: `inodraAccount`, `inodraObject`, `inodraTransaction`, `inodraChain`, `inodraNaming`, `inodraGrpc`, `inodraRpc`, `inodraWarp`, `inodraWebhook`, `inodraManagement`. Write code when the result must run again or ship in an app.
+Everything in these skills works with plain HTTP and gRPC calls; no MCP server is required. If the Inodra MCP server is installed, use its tools for one-off lookups and to check results: `inodraAccount`, `inodraObject`, `inodraTransaction`, `inodraChain`, `inodraNaming`, `inodraGrpc`, `inodraRpc`, `inodraWarp`, `inodraWebhook`, `inodraManagement`. Write code when the result must run again or ship in an app. To install it, the user runs `claude mcp add inodra -- npx -y @inodra/mcp-server` in Claude Code, or adds `npx -y @inodra/mcp-server` as a stdio server in another client; the first `inodraConnect` call signs them in. See the package README for details.
 
 ## Pick the gateway
 
