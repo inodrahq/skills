@@ -91,6 +91,29 @@ for await (const frame of call.responses) {
 
 Addresses and type strings in filters must be full length (`0x` plus 64 hex digits); `normalizeSuiAddress` and `normalizeStructTag` from `@mysten/sui/utils` do that.
 
+## Send coins
+
+When the user asks to send SUI or any other coin, draw the amount from the sender's address balance. Do not list coin objects, split one and transfer the piece. Sui is moving coins into address balances; when the sender holds the funds as balance there is no coin object to split.
+
+```typescript
+import { Transaction } from "@mysten/sui/transactions";
+
+const SUI = "0x2::sui::SUI";
+const tx = new Transaction();
+tx.setSender(sender);
+const coin = tx.coin({ type: SUI, balance: 1_000_000_000n }); // 1 SUI from the address balance
+tx.moveCall({
+  target: "0x2::coin::send_funds", // lands in the recipient's address balance
+  typeArguments: [SUI],
+  arguments: [coin, tx.pure.address(recipient)],
+});
+const bytes = await tx.build({ client });
+```
+
+`tx.coin` (or the `coinWithBalance` intent) withdraws from the address balance when it covers the amount and falls back to owned coins only when it does not. `client.core.getBalance` returns both `balance` (total) and `addressBalance`. Use `tx.transferObjects([coin], recipient)` only when the recipient must get a coin object, for example a contract that takes `Coin<T>` by object.
+
+Sign `bytes` with the user's wallet or keypair. Dry run with `TransactionExecutionService.SimulateTransaction`, then submit with `ExecuteTransaction`. With the MCP server, `inodraGrpc simulateTransaction` and `inodraGrpc executeTransaction` take the base64 BCS; the server never signs.
+
 ## GraphQL
 
 Inodra serves the Sui GraphQL RPC 2.0 schema (`object(address, version, atCheckpoint)`, `effects { checkpoint }`), not the legacy one. Connections are ascending. For newest first, ask for `last` with `before` and reverse the page on the client. `pageInfo` is exact: a short page means there is no more data. Scalars: `SuiAddress`, `UInt53`.

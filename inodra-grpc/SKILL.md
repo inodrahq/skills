@@ -42,7 +42,7 @@ const client = new SuiGrpcClient({
 
 **NameService**: `LookupName`, `ReverseLookupName` (SuiNS).
 
-**TransactionExecutionService**: `ExecuteTransaction`, `SimulateTransaction`.
+**TransactionExecutionService**: `SimulateTransaction` (unsigned BCS, dry run) and `ExecuteTransaction` (BCS plus signatures). Coin sends draw from the address balance; see the `inodra-build` skill, Send coins.
 
 **SubscriptionService**: `SubscribeCheckpoints`, `SubscribeTransactions`, `SubscribeEvents`, with filters. Inodra accepts `x-inodra-start-checkpoint` and `x-inodra-start-cursor` metadata to start a filtered stream from the past.
 
@@ -120,3 +120,4 @@ for await (const frame of call.responses) {
 - Responses contain `bigint` and `Uint8Array`. Convert before `JSON.stringify`.
 - Addresses and types in filters must be full length (`0x000...002::coin::Coin`, 64 hex digits). The SDK helpers normalize them; raw calls with `0x2` get `INVALID_ARGUMENT`. Omit `filter` entirely instead of sending empty `terms`.
 - Unary paging (`ListOwnedObjects`, `ListBalances`, `ListDynamicFields`) uses `pageToken` bytes and `pageSize`.
+- Build coin sends with `tx.coin({ type, balance })` and `0x2::coin::send_funds`, not by splitting coin objects.
